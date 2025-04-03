@@ -1,0 +1,17 @@
+{
+  "beneficiary": {
+    "full_name": "Jean Dupont",
+    "nationality": "France"
+  },
+  "employer": {
+    "company_name": "TechCorp Inc.",
+    "job_title": "Mechanical Engineer",
+    "pay_rate": "$85,000 per year",
+    "job_roles": [
+      "Design and analyze mechanical components and systems",
+      "Develop prototypes and conduct performance tests",
+      "Collaborate with cross-functional teams to enhance product efficiency"
+    ],
+    "company_website": "https://techcorp.com"
+  }
+}
