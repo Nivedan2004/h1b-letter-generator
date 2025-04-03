@@ -2,12 +2,12 @@ const fs = require('fs');
 const path = require('path');
 const pdfParse = require('pdf-parse');
 
-// Using absolute path resolution
+
 const TEMPLATE_PATH = path.resolve(process.cwd(), 'src/assets/example-h1b-letter.pdf');
 
 async function readExampleTemplate() {
     try {
-        // Check if template exists
+        
         if (!fs.existsSync(TEMPLATE_PATH)) {
             console.error(`Template not found at path: ${TEMPLATE_PATH}`);
             throw new Error(`Example H-1B letter template not found at ${TEMPLATE_PATH}`);

@@ -16,7 +16,8 @@ const generatePDF = async (letterContent) => {
           bottom: 72,
           left: 72,
           right: 72
-        }
+        },
+        size: 'letter'
       });
 
       const buffers = [];
@@ -26,28 +27,83 @@ const generatePDF = async (letterContent) => {
         resolve(pdfData);
       });
 
-      // Professional PDF formatting
+      // Remove the EMPLOYER LETTERHEAD from content if it exists
+      let cleanedContent = letterContent.replace('EMPLOYER LETTERHEAD', '').trim();
+
+      // EMPLOYER LETTERHEAD
       doc.font('Helvetica-Bold')
-         .fontSize(16)
+         .fontSize(14)
          .text('EMPLOYER LETTERHEAD', { align: 'center' })
          .moveDown(2);
 
-      doc.font('Helvetica')
-         .fontSize(12);
+      // Split content into sections and remove any empty lines at the start
+      const sections = cleanedContent.split(/\n(?=COMPANY PROFILE|THE JOB DUTIES|THE BENEFICIARY)/g)
+                                   .map(section => section.trim());
 
-      // Format content with proper spacing and alignment
-      const sections = letterContent.split('\n\n');
+      // Process each section
       sections.forEach((section, index) => {
-        doc.text(section.trim(), {
-          align: section.includes('Dear') ? 'left' : 
-                section.includes('Sincerely') ? 'left' : 'justify',
-          continued: false
-        });
-        
-        if (index < sections.length - 1) {
-          doc.moveDown(2);
+        if (index === 0) {
+          // First section contains header information
+          const headerLines = section.split('\n');
+          headerLines.forEach((line, i) => {
+            if (line.trim()) {
+              if (line.startsWith('Re:')) {
+                doc.font('Times-Roman')
+                   .fontSize(12)
+                   .text('Re:', { continued: true })
+                   .text('      ' + line.substring(3).trim(), { align: 'left' });
+              } else {
+                doc.font('Times-Roman')
+                   .fontSize(12)
+                   .text(line.trim(), { align: 'left' });
+              }
+              doc.moveDown(1);
+            }
+          });
+        } else {
+          // Handle other sections
+          if (section.includes('COMPANY PROFILE')) {
+            doc.font('Times-Roman')
+               .fontSize(12)
+               .text('COMPANY PROFILE', { align: 'center' })
+               .moveDown(1)
+               .text(section.replace('COMPANY PROFILE', '').trim(), {
+                 align: 'justify',
+                 lineGap: 2
+               });
+          } else if (section.includes('THE JOB DUTIES')) {
+            doc.moveDown(1)
+               .font('Times-Roman')
+               .text(section, {
+                 align: 'justify',
+                 lineGap: 2
+               });
+          } else if (section.includes('THE BENEFICIARY')) {
+            doc.moveDown(1)
+               .font('Times-Roman')
+               .text(section, {
+                 align: 'justify',
+                 lineGap: 2
+               });
+          } else {
+            doc.font('Times-Roman')
+               .text(section, {
+                 align: 'justify',
+                 lineGap: 2
+               });
+          }
+          doc.moveDown(1);
         }
       });
+
+      // Signature block
+      doc.moveDown(2)
+         .text('Sincerely,', { align: 'left' })
+         .moveDown(3)
+         .text('_____________________', { align: 'left' })
+         .moveDown(1)
+         .text('[Name and Title]', { align: 'left' })
+         .text('[Company Name]', { align: 'left' });
 
       doc.end();
     } catch (error) {
@@ -61,12 +117,34 @@ const generateSupportLetter = async (beneficiary, employer, companyInfo = null) 
     // Get the example template
     const exampleTemplate = await readExampleTemplate();
 
-    // Construct enhanced prompt
-    const prompt = `Generate an H-1B support letter following this exact example template:
+    const prompt = `Generate a formal H-1B support letter following this exact format:
 
-${exampleTemplate}
+[date]
 
-Use these specific details to customize the letter while maintaining the same format and structure:
+U.S. Citizenship and Immigration Services
+
+Re:      [Company Name]/Petition for Nonimmigrant Worker on behalf of [Beneficiary Name]
+
+Dear Sir/Madam:
+
+[Introduction paragraph about the petition]
+
+COMPANY PROFILE
+[Detailed company background and description]
+
+THE JOB DUTIES
+[Detailed description of position and responsibilities]
+
+THE BENEFICIARY
+[Beneficiary's qualifications and suitability]
+
+Sincerely,
+
+[Name]
+[Title]
+[Company Name]
+
+Use these specific details:
 - Beneficiary: ${beneficiary.full_name} (${beneficiary.nationality})
 - Role: ${employer.job_title} at ${employer.company_name}
 - Salary: ${employer.pay_rate}
@@ -79,23 +157,23 @@ ${companyInfo ? `Additional Company Information:
 ${Object.entries(companyInfo).map(([key, value]) => `${key}: ${value}`).join('\n')}` : ''}
 
 Requirements:
-1. Follow the exact same format and structure as the example template
-2. Maintain the same professional tone and language style
-3. Include all sections present in the example
-4. Customize the content with the provided details
-5. Keep any legal language or important disclaimers
-6. Include proper letterhead and signature block as in the example
-7. Use the same paragraph structure and section ordering as the example
-8. Maintain any specific legal citations or references from the example
-9. Keep the same level of detail and specificity for job responsibilities
-10. Preserve any USCIS-specific formatting or references`;
+1. Format exactly like a formal business letter
+2. Use Times New Roman or similar font
+3. Justify all paragraphs
+4. Center the section headers
+5. Maintain proper spacing between sections
+6. Include all standard letter components (date, address, salutation, etc.)
+7. Keep content professional and formal
+8. Follow standard H-1B support letter conventions
+9. Include specific job responsibilities and requirements
+10. Maintain proper paragraph spacing and formatting`;
 
     const response = await openai.chat.completions.create({
       model: "gpt-3.5-turbo",
       messages: [
         {
           role: "system",
-          content: "You are an experienced immigration lawyer specializing in H-1B visas. Generate a support letter that exactly follows the provided example template's format and structure while incorporating the specific details provided. Maintain all legal language, citations, and professional tone from the example."
+          content: "You are an experienced immigration lawyer specializing in H-1B visas. Generate a support letter that exactly follows the provided format while incorporating the specific details provided. Maintain all legal language, citations, and professional tone. Ensure the letter follows standard business letter formatting."
         },
         {
           role: "user",
@@ -103,7 +181,7 @@ Requirements:
         }
       ],
       temperature: 0.7,
-      max_tokens: 2000, // Increased to accommodate longer letters
+      max_tokens: 2000,
       presence_penalty: 0.1,
       frequency_penalty: 0.1
     });
@@ -112,8 +190,8 @@ Requirements:
 
     // Additional formatting and validation
     const formattedContent = letterContent
-      .replace(/\r\n/g, '\n')  // Normalize line endings
-      .replace(/\n{3,}/g, '\n\n')  // Remove excessive line breaks
+      .replace(/\r\n/g, '\n')
+      .replace(/\n{3,}/g, '\n\n')
       .trim();
 
     // Generate PDF
